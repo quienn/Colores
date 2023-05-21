@@ -5,3 +5,9 @@ plugins {
 application {
   mainClass = 'colores.App'
 }
+
+jar {
+  manifest {
+    attributes 'Main-Class': application.mainClass
+  }
+}
