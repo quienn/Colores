@@ -9,12 +9,9 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import javax.imageio.ImageIO;
 import javax.swing.Box;
@@ -30,13 +27,14 @@ import javax.swing.UIManager;
 
 public class App {
 
-  private static final Font FONT = new Font(Font.SANS_SERIF, Font.PLAIN, 14);
+  private static boolean isProcessing = false;
+  private static final Font FONT = new Font(Font.SANS_SERIF, Font.PLAIN, 16);
   private static final Colors colorUtil = new Colors();
 
   public static void main(String[] args) {
     final JFrame appFrame = new JFrame("Colores");
     appFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-    appFrame.setPreferredSize(new Dimension(600, 180));
+    appFrame.setPreferredSize(new Dimension(600, 170));
     appFrame.setResizable(false);
     appFrame.setLayout(new BoxLayout(appFrame.getContentPane(), BoxLayout.Y_AXIS));
 
@@ -57,7 +55,8 @@ public class App {
 
     appFrame.add(Box.createRigidArea(new Dimension(0, 20)));
 
-    final JButton addImageButton = new JButton("Analizar Imagen...");
+    final JButton addImageButton = new JButton("Elegir...");
+
     addImageButton.setFont(FONT);
     addImageButton.setAlignmentY(Component.CENTER_ALIGNMENT);
     addImageButton.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -67,12 +66,7 @@ public class App {
         final var imageFile = readImage(appFrame);
 
         if (imageFile != null) {
-          ArrayList<int[]> imageRgb = getImageRgb(imageFile);
-
-          if (imageRgb != null) {
-            HashMap<int[], Integer> imageColors = getImageColors(imageRgb);
-            createStatsFrame(appFrame, imageColors);
-          }
+          createStatsFrame(appFrame, imageFile);
         }
       }
     };
@@ -84,72 +78,89 @@ public class App {
     appFrame.setVisible(true);
   }
 
-  private static ArrayList<int[]> getImageRgb(File file) {
-    final ArrayList<int[]> colorData = new ArrayList<>();
+  private static void createStatsFrame(JFrame frame, File imageFile) {
+    final JFrame statsFrame = new JFrame("Análisis de Imagen");
+    statsFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+    statsFrame.setPreferredSize(new Dimension(600, 300));
+    statsFrame.setResizable(false);
+    statsFrame.setLayout(new GridLayout(5, 1));
 
-    BufferedImage imageBuffer;
+    final HashMap<String, Integer> colorNameMap = new HashMap<>();
+    final HashMap<String, int[]> colorMap = new HashMap<>();
+
+    final BufferedImage imageBuffer;
     try {
-      imageBuffer = ImageIO.read(file);
+      imageBuffer = ImageIO.read(imageFile);
     } catch (Exception e) {
-      return null;
+      // TODO Agregar un mensaje de error y cerrar ventana si no se pudo leer la
+      // imagen.
+      System.out.println(e);
+      return;
     }
 
-    int width = imageBuffer.getWidth();
-    int height = imageBuffer.getHeight();
+    final int width = imageBuffer.getWidth();
+    final int height = imageBuffer.getHeight();
 
     final FastRgb fastRgb = new FastRgb(imageBuffer);
 
     for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
+      for (int x = 0; x < width; x += 1) {
         int rgb = fastRgb.getRGB(x, y);
         int r = (rgb >> 16) & 0xFF;
         int g = (rgb >> 8) & 0xFF;
         int b = rgb & 0xFF;
 
-        colorData.add(new int[] { r, g, b });
+        String name = colorUtil.getColorNameFromRgb(r, g, b);
+        if (colorNameMap.containsKey(name)) {
+          colorNameMap.put(name, colorNameMap.get(name) + 1);
+        } else {
+          colorNameMap.put(name, 1);
+        }
+
+        if (colorMap.containsKey(name)) {
+          int[] color = colorMap.get(name);
+          colorMap.put(name, color);
+        } else {
+          int[] color = { r, g, b };
+          colorMap.put(name, color);
+        }
       }
     }
 
-    return colorData;
-  }
+    final List<Map.Entry<String, Integer>> dominantColors = colorNameMap.entrySet().stream()
+        .sorted(Map.Entry.<String, Integer>comparingByValue().reversed()).limit(5).toList();
 
-  private static HashMap<int[], Integer> getImageColors(List<int[]> data) {
-    final HashMap<int[], Integer> colors = new HashMap<>();
+    int entryPosition = 1;
+    for (Map.Entry<String, Integer> colorEntry : dominantColors) { 
+      int[] color = colorMap.get(colorEntry.getKey());
 
-    for (int[] color : data) {
-      if (colors.containsKey(color)) {
-        colors.put(color, colors.get(color) + 1);
-      } else {
-        colors.put(color, 1);
-      }
-    }
-
-    return colors;
-  }
-
-  private static void createStatsFrame(JFrame frame, Map<int[], Integer> colorData) {
-    final JFrame statsFrame = new JFrame("Análisis de Imagen");
-    statsFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-    statsFrame.setPreferredSize(new Dimension(600, 300));
-    statsFrame.setResizable(false);
-    statsFrame.setLayout(new GridLayout(1, 5));
-
-    List<Map.Entry<int[], Integer>> dominantColors = colorData.entrySet().stream()
-        .sorted(Map.Entry.<int[], Integer>comparingByValue().reversed()).limit(5).toList();
-
-    for (Map.Entry<int[], Integer> entry : dominantColors) {
-      int[] colorRgb = entry.getKey();
-      int occurrences = entry.getValue();
-
-      String colorName = colorUtil.getColorNameFromRgb(colorRgb[0], colorRgb[1], colorRgb[2]);
-
-      System.out.println("%s : %d (%s)".formatted(colorName, occurrences, colorRgb));
+      // System.out.println(colorEntry.getKey() + " : " + colorEntry.getValue());
+      final Color colorObject = new Color(color[0], color[1], color[2]);
 
       final JPanel colorPanel = new JPanel();
-      colorPanel.setBackground(new Color(colorRgb[0], colorRgb[1], colorRgb[2]));
+      colorPanel.setBackground(colorObject);
       colorPanel.setPreferredSize(new Dimension(50, 50));
 
+      final JLabel colorLabel = new JLabel("%d. %s (%d píxeles)".formatted(entryPosition, colorEntry.getKey(), colorEntry.getValue()));
+      colorLabel.setFont(FONT);
+      colorLabel.setVerticalAlignment(JLabel.CENTER);
+      colorLabel.setHorizontalAlignment(JLabel.CENTER);
+
+      int d = 0;
+      final double luminance = (0.299 * colorObject.getRed() + 0.587 * colorObject.getGreen() + 0.114 * colorObject.getBlue()) / 255;
+
+      if (luminance > 0.5) {
+        d = 0;
+      } else {
+        d = 255;
+      }
+
+      colorLabel.setForeground(new Color(d, d, d));
+
+      colorPanel.add(colorLabel);
+
       statsFrame.add(colorPanel);
+      entryPosition++;
     }
 
     statsFrame.pack();

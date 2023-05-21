@@ -1,8 +1,8 @@
 package colores;
 
-import java.awt.Color;
 import java.util.ArrayList;
 
+// Adaptado de https://gist.github.com/XiaoxiaoLi/8031146
 public class Colors {
 
 	/**
@@ -179,39 +179,6 @@ public class Colors {
 		} else {
 			return "No matched color name.";
 		}
-	}
-
-  public int[] getRgbFromColorName(String colorName) {
-    ArrayList<ColorName> colorList = initColorList();
-    for (ColorName c : colorList) {
-      if (c.getName().equals(colorName)) {
-        return new int[]{c.r, c.g, c.b};
-      }
-    }
-    return new int[]{0, 0, 0};
-  }
-
-	/**
-	 * Convert hexColor to rgb, then call getColorNameFromRgb(r, g, b)
-	 * 
-	 * @param hexColor
-	 * @return
-	 */
-	public String getColorNameFromHex(int hexColor) {
-		int r = (hexColor & 0xFF0000) >> 16;
-		int g = (hexColor & 0xFF00) >> 8;
-		int b = (hexColor & 0xFF);
-		return getColorNameFromRgb(r, g, b);
-	}
-
-	public int colorToHex(Color c) {
-		return Integer.decode("0x"
-				+ Integer.toHexString(c.getRGB()).substring(2));
-	}
-
-	public String getColorNameFromColor(Color color) {
-		return getColorNameFromRgb(color.getRed(), color.getGreen(),
-				color.getBlue());
 	}
 
 	/**
